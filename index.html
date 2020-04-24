@@ -2,43 +2,8 @@
 <html>
 <head>
 
-  <link rel="stylesheet" href="leaflet.css" />
-
 
     <style>
-
-
-    #map {
-      width: 800px;
-      height: 500px;
-    }
-
-    .info {
-      padding: 6px 8px;
-      font: 14px/16px Arial, Helvetica, sans-serif;
-      background: white;
-      background: rgba(255,255,255,0.8);
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
-      border-radius: 5px;
-    }
-    .info h4 {
-      margin: 0 0 5px;
-      color: #777;
-    }
-
-    .legend {
-      text-align: left;
-      line-height: 18px;
-      color: #555;
-    }
-    .legend i {
-      width: 18px;
-      height: 18px;
-      float: left;
-      margin-right: 8px;
-      opacity: 0.7;
-    }
-
 .row {
   display: flex;
 }
@@ -124,11 +89,6 @@
     <script src="d3-tip.js"></script>
 
 
-  <script src="leaflet.js"></script>
-  <script src="https://unpkg.com/topojson@3.0.2/dist/topojson.min.js"></script>
-  <script type="text/javascript" src="az.js"></script>  
-
-
 </head>
 <body>
 <div>
@@ -151,160 +111,424 @@
 
 </select>
 
-  <div id="map"></div>
 
+
+
+
+<div class="row" style="width: 1500px;">
+    <svg width="1000" height="400" ></svg>
+ 
+</div>
+<div class="row">
+  <div class="row" style="width: 400px;">
+   <div id="pie" class="column"></div>
+<div id="pie2" class="column"></div>
+</div>
+</div>
+
+
+
+
+
+
+
+<p id="demo" style="display: none;"></p>
+
+<div id="my_dataviz"></div>
 
 
 
 <script>
       
   function myFunction() {
-
-    var container = L.DomUtil.get('map');
-      if(container != null){
-        container._leaflet_id = null;
-      }
-
-       var map = L.map('map').setView([37.8, -96], 4);
-
-    L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
-      maxZoom: 40,
-      attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-        '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-        'Imagery © <a href="http://mapbox.com">Mapbox</a>',
-      id: 'examples.map-20v6611k'
-    }).addTo(map);
-
-    // control that shows state info on hover
-    var info = L.control();
-
-    info.onAdd = function (map) {
-      this._div = L.DomUtil.create('div', 'info');
-      this.update();
-      return this._div;
-    };
-
-    info.update = function (props) {
-      this._div.innerHTML = '<h4>density of AZ county population</h4>' +  (props ?
-        '<b>' + props.NAME + '</b><br />' + props.density2 + ' people / mi<sup>2</sup>'
-        : 'Hover over a county');
-    };
-
-    info.addTo(map);
+  var select_value = document.getElementById("cars").value;
+  var svg_i = d3.select("svg");
+  svg_i.selectAll("*").remove();
 
 
-    // get color depending on population density value
-    function getColor(d) {
-      return d > 400  ? '#800026' :
-             d > 200  ? '#BD0026' :
-             d > 100  ? '#E31A1C' :
-             d > 50  ? '#FC4E2A' :
-             d > 25   ? '#FD8D3C' :
-             d > 10   ? '#FEB24C' :
-             d > 5   ? '#FED976' :
-                        '#FFEDA0';
-    }
+     var svg = d3.select("svg"),
+        margin = 200,
+        width = svg.attr("width") - margin-40,
+        height = svg.attr("height") - margin;
+    var tooltip = d3.select("body").append("div").attr("class", "toolTip");
 
-    function style(feature) {
-      return {
-        weight: 2,
-        opacity: 1,
-        color: 'white',
-        dashArray: '3',
-        fillOpacity: 0.7,
-        fillColor: getColor(feature.properties.density)
-      };
-    }
+        var tool_tip = d3.tip()
+      .attr("class", "d3-tip")
+      .offset([-8, 0])
+      .html(function(d) { return "Radius: " + d; });
+    svg.call(tool_tip);
 
-    function highlightFeature(e) {
-      var layer = e.target;
+        svg.append("text")
+       .attr("transform", "translate(100,0)")
+       .attr("x", 50)
+       .attr("y", 20)
+       .attr("font-size", "24px")
+       .text("Top 8 performers of Australian Open Trophy(Tennis) in the Year " + select_value);
 
-      layer.setStyle({
-        weight: 5,
-        color: '#666',
-        dashArray: '',
-        fillOpacity: 0.7
-      });
 
-      if (!L.Browser.ie && !L.Browser.opera) {
-        layer.bringToFront();
-      }
+    svg.append("text")
+       .attr("transform", "translate(100,0)")
+       .attr("x", 50)
+       .attr("y", 50)
+       .attr("font-size", "24px")
+       .text("Games to Sets Over-Performing Ratio")
 
-      info.update(layer.feature.properties);
-    }
+    var x = d3.scaleBand().range([0, width]).padding(0.4),
+        y = d3.scaleLinear().range([height, 0]);
 
-    var geojson;
+    var g = svg.append("g")
+            .attr("transform", "translate(" + 100 + "," + 100 + ")");
 
-    function resetHighlight(e) {
-      geojson.resetStyle(e.target);
-      info.update();
-    }
+    var trophy_winner = '';
 
-    function zoomToFeature(e) {
-      map.fitBounds(e.target.getBounds());
-    }
 
-    function onEachFeature(feature, layer) {
-      layer.on({
-        mouseover: highlightFeature,
-        mouseout: resetHighlight,
-        click: zoomToFeature
-      });
-    }
 
-    L.TopoJSON = L.GeoJSON.extend({
-        addData: function (data) {
-          var geojson, key;
-          if (data.type === "Topology") {
-            for (key in data.objects) {
-              if (data.objects.hasOwnProperty(key)) {
-                geojson = topojson.feature(data, data.objects[key]);
-                L.GeoJSON.prototype.addData.call(this, geojson);
-              }
-            }
-            return this;
-          }
-          L.GeoJSON.prototype.addData.call(this, data);
-          return this;
+
+
+    d3.csv("player_stats.csv", function(error, data) {
+        if (error) {
+            throw error;
         }
-      });
-      L.topoJson = function (data, options) {
-        return new L.TopoJSON(data, options);
-      };
 
-    geojson = L.topoJson(statesData, {
-      style: style,
-      onEachFeature: onEachFeature
-    }).addTo(map);
+                data_2011 = [];
+        y_domain = [];
 
-    map.attributionControl.addAttribution('Population data &copy; <a href="http://census.gov/">US Census Bureau</a>');
+        
 
 
-    var legend = L.control({position: 'bottomright'});
 
-    legend.onAdd = function (map) {
 
-      var div = L.DomUtil.create('div', 'info legend'),
-        grades = [0, 5, 10, 25, 50, 100, 200, 400],
-        labels = [],
-        from, to;
+        for ( var dat = 0; dat < data.length; dat++ ) {
+          if( data[dat].year == parseInt(select_value) ) {
+             data_2011.push(data[dat]);
+             var c = parseInt(data[dat].sets_won) / parseInt(data[dat].sets_played);
+             var g1 = parseInt(data[dat].games_won) / parseInt(data[dat].games_played);
+             var e1 = c/g1;
+             var obj = {"sets_win_per":e1,"player_name":data[dat].player_name};
+             y_domain.push(obj);
+          }
+        }
 
-      for (var i = 0; i < grades.length; i++) {
-        from = grades[i];
-        to = grades[i + 1];
 
-        labels.push(
-          '<i style="background:' + getColor(from + 1) + '"></i> ' +
-          from + (to ? '&ndash;' + to : '+'));
-      }
 
-      div.innerHTML = labels.join('<br>');
-      return div;
-    };
+        x.domain(y_domain.map(function(d) { return d.player_name; }));
+        y.domain([0.65, d3.max(y_domain, function(d) { return d.sets_win_per; })]);
 
-    legend.addTo(map);
-  
 
+        document.getElementById("demo").innerHTML = data_2011[0].year;
+
+        g.append("g")
+         .attr("transform", "translate(0," + height + ")")
+         .call(d3.axisBottom(x))
+         .append("text")
+         .attr("y", height - 150)
+         .attr("x", width-350)
+         .attr("text-anchor", "end")
+         .attr("stroke", "black")
+         .text("Player");
+
+        g.append("g")
+         .call(d3.axisLeft(y).tickFormat(function(d){
+             return d;
+         }).ticks(10))
+         .append("text")
+         .attr("transform", "rotate(-90)")
+         .attr("y", 6)
+         .attr("x",-50)
+         .attr("dy", "-5.1em")
+         .attr("text-anchor", "end")
+         .attr("stroke", "black")
+         .text("GS Ratio");
+
+              var rectangle_svg1 = svg.append("rect")
+                           .attr("x", 875)
+                            .attr("y", 120)
+                            .attr("width", 20)
+                            .attr("height", 20)
+                            .attr("fill","#D4AF37");
+              var rectangle2_svg1 = svg.append("rect")
+                           .attr("x", 875)
+                            .attr("y", 150)
+                            .attr("width", 20)
+                            .attr("fill","#236B8E")
+                            .attr("height", 20);
+              svg.append("text")
+                  .attr("x",900)
+                  .attr("y", 135)
+                  .text("Trophy Winner");
+              svg.append("text")
+                  .attr("x",900)
+                  .attr("y", 165)
+                  .text("Other");
+
+        d3.csv("winners2.csv", function(error2, data2) {
+
+          if (error2) {
+            throw error2;
+          } 
+
+          for( var d1 = 0; d1 < data2.length; d1++ ){
+            if( data2[d1].year == parseInt(select_value) ) {
+              trophy_winner = data2[d1].player1;
+            }
+          }
+
+          console.log(trophy_winner);
+
+        g.selectAll(".bar")
+         .data(y_domain)
+         .enter().append("rect")
+         .attr("fill", function(d) {
+
+            //console.log(d.player_name);
+            //console.log(d.trophy_winner);
+            if ( d.player_name == trophy_winner) {
+
+              return "#D4AF37";
+            }
+            else {
+              return "#236B8E";
+            }
+        })
+         .on("mouseover", function(d) {
+
+          var xPosition = parseFloat(d3.select(this).attr("x")) + x.bandwidth() / 2;
+          var yPosition = parseFloat(d3.select(this).attr("y")) / 2 + height / 2;
+
+          tooltip
+              .style("left", xPosition + 40 + "px")
+              .style("top", d3.event.pageY -70 + "px")
+              .style("display", "inline-block")
+              .html(Math.round(d.sets_win_per * 1000)/1000);
+
+              var arr = [];
+              var arr2 = [];
+
+                for (var i = 0; i < data_2011.length; i++) {
+
+                  if (data_2011[i].player_name == d.player_name) {
+                    ob = {"text_w":"Sets Lost","sets":data_2011[i].sets_played - data_2011[i].sets_won};
+                    ob2 = {"text_w":"Sets Won","sets":data_2011[i].sets_won};
+                    arr.push(ob);
+                    arr.push(ob2);
+
+                    ob = {"text_w":"Games Lost","games":data_2011[i].games_played - data_2011[i].games_won};
+                    ob2 = {"text_w":"Games Won","games":data_2011[i].games_won};
+                    arr2.push(ob);
+                    arr2.push(ob2);
+                  }
+                        
+                }
+          
+              document.getElementById("demo").innerHTML = data;
+              var data2 = [{"letter":"q","presses":1},{"letter":"w","presses":5},{"letter":"e","presses":2}];
+              var width2 = 200,
+              height2 = 200,
+  // Think back to 5th grade. Radius is 1/2 of the diameter. What is the limiting factor on the diameter? Width or height, whichever is smaller
+              radius = Math.min(width2, height2) / 2;
+              var color = d3.scaleOrdinal()
+                            .range(["#F56C4E","#2C93E8"]);
+
+              var pie = d3.pie()
+                          .value(function(d) { return d.sets; })(arr);
+
+              var arc = d3.arc()
+                .outerRadius(radius - 10)
+                .innerRadius(0);
+
+              var labelArc = d3.arc()
+                .outerRadius(radius - 40)
+                .innerRadius(radius - 40);
+              var svg2 = d3.select("#pie")
+                .append("svg")
+                .attr("width", width2)
+                .attr("height", height2+100)
+                  .append("g")
+                  .attr("transform", "translate(" + width2/2 + "," + height2/2 +")"); 
+
+              var g2= svg2.selectAll("arc")
+                .data(pie)
+                .enter().append("g")
+                .attr("class", "arc");
+
+              g2.append("path")
+                .attr("d", arc)
+                .style("fill", function(d) { return color(d.data.text_w);});
+
+
+
+              var pie2 = d3.pie()
+                .value(function(d) { return d.games; })(arr2);
+
+              var svg3 = d3.select("#pie2")
+                .append("svg")
+                .attr("width", width+100)
+                .attr("height", height+100)
+                  .append("g")
+                  .attr("transform", "translate(" + width2/2 + "," + height2/2 +")"); 
+
+              var g3= svg3.selectAll("arc")
+                .data(pie2)
+                .enter().append("g")
+                .attr("class", "arc");
+
+              g3.append("path")
+                .attr("d", arc)
+                .style("fill", function(d) { return color(d.data.text_w);});
+
+  /*g2.append("text")
+  .attr("transform", function(d) { return "translate(" + labelArc.centroid(d) + ")"; })
+  .text(function(d) { return d.data.text_w;})
+  .style("fill", "#ffffff");*/
+
+              var rectangle = svg3.append("rect")
+                           .attr("x", 140)
+                            .attr("y", 10)
+                            .attr("width", 20)
+                            .attr("height", 20)
+                            .attr("fill","#2C93E8");
+              var rectangle2 = svg3.append("rect")
+                           .attr("x", 140)
+                            .attr("y", 40)
+                            .attr("width", 20)
+                            .attr("fill","#F56C4E")
+                            .attr("height", 20);
+              svg3.append("text")
+              .attr("x", 170)
+              .attr("y", 55)
+              .text("Loss");
+
+              svg3.append("text")
+              .attr("x", -60)
+              .attr("y", 120)
+              .text("Games won vs Games lost");
+
+              svg2.append("text")
+              .attr("x", -80)
+              .attr("y", 120)
+              .text("Sets won vs Sets lost");
+
+
+              svg3.append("text")
+              .attr("x", 170)
+              .attr("y", 25)
+              .text("Win");
+
+              d3.select(this).attr("fill", function(d) {
+
+            //console.log(d.player_name);
+            //console.log(d.trophy_winner);
+            if ( d.player_name == trophy_winner) {
+
+              return "#D4AF37";
+            }
+            else {
+              return "#236B8E";
+            }
+        });
+              d3.select(this)
+                .transition()     // adds animation
+                .duration(400)
+                .attr('width', x.bandwidth() + 5)
+                .attr("y", function(d) { return y(d.sets_win_per) - 10; })
+                .attr("height", function(d) { return height - y(d.sets_win_per) + 10; });
+
+                g.append("text")
+                .attr('class', 'val') 
+                .attr('x', function() {
+                   return x(d.year);
+                })
+                .attr('y', function() {
+                   return y(d.sets_win_per) - 15;
+                })
+                .text(function() {
+                   return [];  // Value of the text
+                });
+               }
+
+         ) //Add listener for the mouseover event
+         .on("mouseout", onMouseOut)   //Add listener for the mouseout event
+         .attr("x", function(d) { return x(d.player_name); })
+         .attr("y", function(d) { return y(d.sets_win_per); })
+         .attr("width", x.bandwidth())
+         .transition()
+         .ease(d3.easeLinear)
+         .duration(400)
+         .delay(function (d, i) {
+             return i * 50;
+         })
+         .attr("height", function(d) { return height - y(d.sets_win_per); });
+
+        });
+
+
+
+
+    });
+    
+    //mouseover event handler function
+    /*function onMouseOver(d, i) {
+
+                  /*tooltip
+              .style("left", d3.event.pageX - 50 + "px")
+              .style("top", d3.event.pageY - 70 + "px")
+              .style("display", "inline-block")
+              .html(d.value);*/
+
+
+
+        /*d3.select(this).attr('class', 'highlight');
+        d3.select(this)
+          .transition()     // adds animation
+          .duration(400)
+          .attr('width', x.bandwidth() + 5)
+          .attr("y", function(d) { return y(d.value) - 10; })
+          .attr("height", function(d) { return height - y(d.value) + 10; });
+
+        g.append("text")
+         .attr('class', 'val') 
+         .attr('x', function() {
+             return x(d.player_name);
+         })
+         .attr('y', function() {
+             return y(d.sets_win_per) - 15;
+         })
+         .text(function() {
+             return [ d.sets_win_per];  // Value of the text
+         });
+    }*/
+
+    //mouseout event handler function
+    function onMouseOut(d, i) {
+        // use the text label class to remove label on mouseout
+        tooltip.style("display", "none");
+
+        document.getElementById("pie").innerHTML = "";
+        document.getElementById("pie2").innerHTML = "";
+
+
+        d3.select(this).attr("fill", function(d) {
+
+            //console.log(d.player_name);
+            //console.log(d.trophy_winner);
+            if ( d.player_name == trophy_winner) {
+
+              return "#D4AF37";
+            }
+            else {
+              return "#236B8E";
+            }
+        });
+        d3.select(this)
+          .transition()     // adds animation
+          .duration(400)
+          .attr('width', x.bandwidth())
+          .attr("y", function(d) { return y(d.sets_win_per); })
+          .attr("height", function(d) { return height - y(d.sets_win_per); });
+
+        d3.selectAll('.val')
+          .remove()
+    }
   }
 
  
